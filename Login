@@ -1,0 +1,76 @@
+// ==UserScript==
+// @name         PUMA Keycloak • Auto-Login
+// @match        https://puma.logistics.reply.com/auth/realms/puma/*
+// @run-at       document-idle
+// ==/UserScript==
+
+(function () {
+  const USERNAME = "cajamarcubi";
+  const PASSWORD = "Cajamar1948!!";
+
+  let fired = false;
+
+  function hasUniqueMarkers() {
+    // Guard so it only runs on this screen
+    const ssoSpan = Array.from(document.querySelectorAll('.kc-social-provider-name'))
+      .some(el => (el.textContent || '').trim() === 'Puma SSO');
+    const loginBtn = document.querySelector('#kc-login');
+    const userInp  = document.querySelector('#username');
+    const passInp  = document.querySelector('#password');
+    return ssoSpan && loginBtn && userInp && passInp;
+  }
+
+  function fillAndSubmit() {
+    if (fired) return;
+    const u = document.querySelector('#username');
+    const p = document.querySelector('#password');
+    const btn = document.querySelector('#kc-login');
+    if (!u || !p || !btn) return;
+
+    fired = true;
+
+    // Fill username
+    u.value = USERNAME;
+    u.dispatchEvent(new Event('input', { bubbles: true }));
+    u.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Fill password
+    p.value = PASSWORD;
+    p.dispatchEvent(new Event('input', { bubbles: true }));
+    p.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Submit
+    btn.click();
+  }
+
+  function waitForFormThenSubmit() {
+    // Poll up to ~20s after an initial 2s delay
+    const startDelayMs = 2000;
+    const intervalMs = 150;
+    const maxTries = Math.ceil(20000 / intervalMs);
+    let tries = 0;
+
+    setTimeout(() => {
+      const iv = setInterval(() => {
+        tries++;
+        if (hasUniqueMarkers()) {
+          clearInterval(iv);
+          fillAndSubmit();
+        } else if (tries >= maxTries) {
+          clearInterval(iv);
+        }
+      }, intervalMs);
+    }, startDelayMs);
+  }
+
+  // Mutation observer as a backup for slow renders or SPA transitions
+  const mo = new MutationObserver(() => {
+    if (hasUniqueMarkers()) {
+      mo.disconnect();
+      fillAndSubmit();
+    }
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  waitForFormThenSubmit();
+})();
